@@ -1,0 +1,140 @@
+---
+title: "ADA_final"
+author: "Katherine"
+date: "2020/11/17"
+output: html_document
+---
+
+```{r }
+library(tidyverse)
+install.packages("R2admb")
+install.packages("glmmADMB",
+                  repos="http://glmmadmb.r-forge.r-project.org/repos",
+                  type="source")
+require(glmmADMB)
+## load lme4 package
+require(lme4)
+
+library(table1)
+
+```
+
+
+
+```{r }
+covid<-read.csv("covid5.csv")
+covid$Policy_stay_at_home<-factor(covid$home_cat, levels=c(0,1), labels=c("no measures", "recomend/require to stay at home "))
+
+
+
+
+covid$day<-as.numeric(covid$day)
+covid$County<-as.factor(covid$County)
+covid$State<-as.factor(covid$State1)
+as.data.frame(covid)
+covid<-na.omit(covid)
+```
+
+```{r}
+#Table 1
+
+label(covid$community_vitality)<-"Community vitality scores"
+label(covid$equity)<-"Equity scores"
+label(covid$Policy_stay_at_home)<-"Stay at home requirements"
+label(covid$New.case)<-"Daily new cases"
+label(covid$Population)<-"Population in each county"
+
+table1(~New.case+community_vitality+equity+economy+Policy_stay_at_home+Population, overall="Total", rowlabelhead="Variable", footnote="SD=standard deviation", covid)
+```
+
+
+```{r }
+#3 study periods 
+covid$daygroup[covid$day>=1 &covid$day<=66]<-1
+covid$daygroup[covid$day>=67 &covid$day<=133]<-2
+covid$daygroup[covid$day>=134 &covid$day<=198]<-3
+
+covid$daygroup<-factor(covid$daygroup,level=c(1:3),labels=c("1-66","67-133","134-198"))
+```
+
+
+# choose 1000 random sample in each dataset
+```{r}
+#subset data
+covid1 <- subset(covid, daygroup=1)
+covid2 <- subset(covid, daygroup=2)
+covid3 <- subset(covid, daygroup=3)
+
+sub1=sample(nrow(covid1),1000)
+covid1<-covid[sub1,]
+sub2=sample(nrow(covid2),1000)
+covid2<-covid[sub2,]
+sub3=sample(nrow(covid3),1000)
+covid3<-covid[sub3,]
+```
+
+
+```{r}
+summary(covid1$New.case)
+#data1
+d <- density(covid1$New.case) 
+plot(d, xlim=c(1,260))
+hist(covid1$New.case, breaks=c(0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260))
+#data2
+summary(covid2$New.case)
+d <- density(covid2$New.case) 
+plot(d, xlim=c(1,280))
+hist(covid2$New.case, breaks=c(0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280))
+#data3
+summary(covid3$New.case)
+d <- density(covid3$New.case) 
+plot(d, xlim=c(1,280))
+hist(covid3$New.case, breaks=c(0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280))
+
+```
+
+
+
+
+```{r}
+covidmixa <- glmer.nb(New.case ~ Policy_stay_at_home +day+(1|County)+(1|State)+offset(log(Population))+community_vitality+equity, data = covid1)
+
+
+summary(covidmixa)
+
+
+```
+```{r}
+confint.merMod(covidmixa,method="Wald")
+```
+
+
+
+
+```{r}
+covidmixb <- glmer.nb(New.case ~ Policy_stay_at_home +day+(1|County)+(1|State)+offset(log(Population))+community_vitality+equity, data = covid2)
+
+
+summary(covidmixb)
+
+```
+
+```{r}
+confint.merMod(covidmixb,method="Wald")
+
+
+```
+```{r}
+covidmixc <- glmer.nb(New.case ~ Policy_stay_at_home +day+(1|County)+(1|State)+offset(log(Population))+community_vitality+equity, data = covid3)
+
+
+summary(covidmixc)
+```
+
+
+
+```{r}
+confint.merMod(covidmixc,method="Wald")
+
+```
+
